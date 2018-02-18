@@ -100,4 +100,8 @@ ENV/
 # mypy
 .mypy_cache/
 
+.pytest_cache
+
 .idea
+.arca
+local_settings.cfg

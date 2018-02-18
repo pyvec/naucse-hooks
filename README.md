@@ -1,7 +1,16 @@
 # Webhooks for naucse.python.cz
 
-How to run:
+How to install:
 
     pip install -r requirements.txt
+
+How to run:
+
     export FLASK_APP=naucse_hooks.py
-    python -m flask run
+    flask run
+
+How to run in debug:
+
+    export FLASK_DEBUG=1
+    export FLASK_APP=naucse_hooks.py
+    flask run

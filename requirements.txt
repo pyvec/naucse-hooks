@@ -1,1 +1,7 @@
 Flask
+git+https://github.com/mikicz/arca.git#egg=arca
+pyyaml
+pytest
+pytest-cov
+pytest-flake8
+requests
