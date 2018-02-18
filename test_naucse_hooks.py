@@ -1,5 +1,3 @@
-import unittest
-
 import pytest
 
 from naucse_hooks import normalize_repo, same_repo, get_branch_from_ref
