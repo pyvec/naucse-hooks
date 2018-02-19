@@ -6,3 +6,4 @@ pytest-cov
 pytest-flake8
 requests
 parameterized
+requests_mock

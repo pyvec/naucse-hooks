@@ -107,7 +107,7 @@ def index():
             "error": text or "Invalid request"
         }), 400
 
-    body = request.get_json(silent=True)
+    body = request.get_json(silent=True, force=True)
 
     if body is None:
         return invalid_request()
