@@ -53,7 +53,7 @@
     
             DocumentRoot <path to root folder>
             LoadModule wsgi_module /usr/local/lib/python3.6/site-packages/mod_wsgi/server/mod_wsgi-py36.cpython-36m-x86_64-linux-gnu.so
-            WSGIDaemonProcess naucse_hooks processes=1 threads=2 display-name=%{GROUP} python-home=<path to venv>
+            WSGIDaemonProcess naucse_hooks processes=1 threads=2 display-name=%{GROUP} python-home=<path to venv> home=<path to root folder>
             WSGIProcessGroup naucse_hooks
             WSGIApplicationGroup %{GROUP}
             WSGIScriptAlias / <path to root folder>/wsgi.py
