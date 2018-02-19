@@ -1,5 +1,7 @@
 # Webhooks for naucse.python.cz
 
+There's current only one hook at `/` which reacts to GitHub push event and triggers a rebuild of naucse. The build is only triggered if the pushed branch is used as a link in the root naucse repository. The hook also reacts to ping events which are sent by GitHub when the webhook is being setup.
+
 ## How to install:
 
     pip install -r requirements.txt
