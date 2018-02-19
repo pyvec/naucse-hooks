@@ -143,13 +143,47 @@ class NaucseHooksTestCase(unittest.TestCase):
         response = self.client.get("/")
         assert response.status_code == 405
 
+        # X-GitHub-Event header missing
+        response = self.client.post("/", data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }))
+        assert response.status_code == 400
+
+        # X-GitHub-Event header ping
+        response = self.client.post("/", data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }), headers={
+            "X-GitHub-Event": "ping"
+        })
+        assert response.status_code == 200
+        assert mocked_trigger_build.call_count == 0
+
+        # X-GitHub-Event header not push or ping
+        response = self.client.post("/", data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }), headers={
+            "X-GitHub-Event": "issue"
+        })
+        assert response.status_code == 400
+
         # invalid json
         response = self.client.post("/", data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
             "ref": "refs/heads/nested_two"
-        })[:-1])
+        })[:-1], headers={
+            "X-GitHub-Event": "push"
+        })
         assert response.status_code == 400
 
         # missing keys
@@ -157,7 +191,9 @@ class NaucseHooksTestCase(unittest.TestCase):
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
-        }))
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
         assert response.status_code == 400
 
         # push of a tag
@@ -166,7 +202,9 @@ class NaucseHooksTestCase(unittest.TestCase):
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
             "ref": "refs/tags/v1.0"
-        }))
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
         assert response.status_code == 400
 
         # push to a branch not in naucse
@@ -175,7 +213,9 @@ class NaucseHooksTestCase(unittest.TestCase):
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
             "ref": "refs/heads/wrong_filename"
-        }))
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
         assert response.status_code == 400
 
         # all were incorrect requests, so no build was triggered
@@ -186,7 +226,9 @@ class NaucseHooksTestCase(unittest.TestCase):
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
             "ref": "refs/heads/nested_two"
-        }))
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
         assert response.status_code == 200
         assert mocked_trigger_build.call_count == 1
 
