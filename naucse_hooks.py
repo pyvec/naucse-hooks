@@ -107,6 +107,17 @@ def index():
             "error": text or "Invalid request"
         }), 400
 
+    if "X-GitHub-Event" not in request.headers:
+        return invalid_request("X-GitHub-Event header missing")
+
+    if request.headers["X-GitHub-Event"] == "ping":
+        return jsonify({
+            "success": "Hook works!"
+        })
+
+    if request.headers["X-GitHub-Event"] != "push":
+        return invalid_request("Invalid X-GitHub-Event header, only accepting ping and push.")
+
     body = request.get_json(silent=True, force=True)
 
     if body is None:
