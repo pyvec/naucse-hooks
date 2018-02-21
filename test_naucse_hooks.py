@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import requests_mock
+import travispy
 import yaml
 from parameterized import parameterized
 
@@ -118,6 +119,7 @@ class NaucseHooksTestCase(unittest.TestCase):
     def test_is_branch_in_naucse(self, repo, branch, present):
         assert naucse_hooks.is_branch_in_naucse(repo, branch) == present
 
+    @patch("travispy.TravisPy.builds", lambda *args, **kwargs: [])
     def test_trigger_build(self):
         with requests_mock.Mocker() as m:
             m.post(re.compile(r"https://api.travis-ci.org/repo/[^/]+/requests"),
@@ -135,6 +137,51 @@ class NaucseHooksTestCase(unittest.TestCase):
             assert m.last_request.headers["Content-Type"] == "application/json"
             assert m.last_request.headers["Authorization"] == f"token {self.token}"
             assert m.last_request.headers["Travis-API-Version"] == "3"
+
+    @patch("travispy.Build.cancel")
+    @patch("travispy.Build.check_state", lambda x: True)
+    def test_cancel_previous_builds(self, mocked_cancel_build):
+        def create_build(state, branch, pull_request=False):
+            build = travispy.Build(None)
+            build.state = state
+            build.pull_request = pull_request
+            commit = travispy.Commit(None)
+            commit.branch = branch
+            build.commit = commit
+            return build
+
+        def create_test_builds(*args, **kwargs):
+            res = []
+
+            # one for the branch actually running
+            res.append(create_build(travispy.Build.STARTED, "master"))
+
+            # one for the branch stopped
+            res.append(create_build(travispy.Build.PASSED, "master"))
+
+            # one only in queue, also to cancel
+            res.append(create_build(travispy.Build.QUEUED, "master"))
+
+            # one running, but for a different branch
+            res.append(create_build(travispy.Build.STARTED, "other_branch"))
+
+            # one pull request
+            res.append(create_build(travispy.Build.STARTED, "master", True))
+
+            return res
+
+        with requests_mock.Mocker() as m:
+            with patch("travispy.TravisPy.builds", create_test_builds):
+                m.post(re.compile(r"https://api.travis-ci.org/repo/[^/]+/requests"),
+                       json={"success": True},
+                       status_code=200)
+
+                naucse_hooks.trigger_build("https://github.com/baxthehacker/public-repo.git", "nested_two")
+
+                assert m.call_count == 1
+                # other validations of the trigger request in `test_trigger_build`
+
+                assert mocked_cancel_build.call_count == 2  # the one which was queued and one which was started
 
     @patch("naucse_hooks.trigger_build")
     @patch("naucse_hooks.get_latest_naucse", lambda: FAKE_REPO)

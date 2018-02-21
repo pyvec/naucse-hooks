@@ -7,6 +7,7 @@ import requests
 import yaml
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
 from flask import Flask, request, jsonify
+from travispy import TravisPy
 
 app = Flask(__name__)
 app.config.from_pyfile("settings.cfg")
@@ -77,6 +78,15 @@ def trigger_build(repo, branch):
     if not app.config["TRAVIS_REPO_SLUG"] or not app.config["TRAVIS_TOKEN"]:
         return
 
+    t = TravisPy(app.config['TRAVIS_TOKEN'])
+
+    # it doesn't make sense for multiple builds of the same branch to run at the same time
+    # so if some are still running for our target branch, lets stop them
+    for build in t.builds(slug=app.config["TRAVIS_REPO_SLUG"]):
+        if not build.pull_request and build.pending and build.commit.branch == app.config["NAUCSE_BRANCH"]:
+            build.cancel()
+
+    # unfortunately, TravisPy doesn't provide a method to trigger a build, so triggering manually:
     requests.post(
         "https://api.travis-ci.org/repo/{}/requests".format(
             urllib.parse.quote_plus(app.config["TRAVIS_REPO_SLUG"])
@@ -84,7 +94,7 @@ def trigger_build(repo, branch):
         json={
             "request": {
                 "branch": app.config["NAUCSE_BRANCH"],
-                "message": f"Build triggered by push from {repo}, branch {branch}"
+                "message": f"Triggered by {arca.repo_id(repo)}/{branch}"
             }
         },
         headers={
