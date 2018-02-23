@@ -110,8 +110,13 @@ def get_branch_from_ref(ref: str) -> Optional[str]:
     return ref.replace("refs/heads/", "")
 
 
-@app.route('/', methods=["POST"])
+@app.route('/')
 def index():
+    return "Please visit <a href='https://github.com/mikicz/naucse-hooks'>GitHub</a> to see usage."
+
+
+@app.route('/hooks/push', methods=["POST"])
+def push_hook():
     def invalid_request(text=None):
         return jsonify({
             "error": text or "Invalid request"

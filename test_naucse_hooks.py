@@ -66,6 +66,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         self.token = "".join([random.choice(string.ascii_lowercase) for _ in range(20)])
         self.app.config["TRAVIS_TOKEN"] = self.token
         self.client = self.app.test_client()
+        self.push_hook = "/hooks/push"
 
         self.testing_iterate_path = FAKE_REPO
 
@@ -185,13 +186,13 @@ class NaucseHooksTestCase(unittest.TestCase):
 
     @patch("naucse_hooks.trigger_build")
     @patch("naucse_hooks.get_latest_naucse", lambda: FAKE_REPO)
-    def test_index(self, mocked_trigger_build):
+    def test_hook(self, mocked_trigger_build):
         # wrong method
-        response = self.client.get("/")
+        response = self.client.get(self.push_hook)
         assert response.status_code == 405
 
         # X-GitHub-Event header missing
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -200,7 +201,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert response.status_code == 400
 
         # X-GitHub-Event header ping
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -212,7 +213,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert mocked_trigger_build.call_count == 0
 
         # X-GitHub-Event header not push or ping
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -223,7 +224,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert response.status_code == 400
 
         # invalid json
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -234,7 +235,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert response.status_code == 400
 
         # missing keys
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -244,7 +245,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert response.status_code == 400
 
         # push of a tag
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -255,7 +256,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         assert response.status_code == 400
 
         # push to a branch not in naucse
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -268,7 +269,7 @@ class NaucseHooksTestCase(unittest.TestCase):
         # all were incorrect requests, so no build was triggered
         assert mocked_trigger_build.call_count == 0
 
-        response = self.client.post("/", data=json.dumps({
+        response = self.client.post(self.push_hook, data=json.dumps({
             "repository": {
                 "clone_url": "https://github.com/baxterthehacker/public-repo.git",
             },
@@ -278,6 +279,11 @@ class NaucseHooksTestCase(unittest.TestCase):
         })
         assert response.status_code == 200
         assert mocked_trigger_build.call_count == 1
+
+    def test_index(self):
+        response = self.client.get("/")
+
+        assert response.status_code == 200
 
     def tearDown(self):
         shutil.rmtree(str(self.testing_iterate_path), ignore_errors=True)
