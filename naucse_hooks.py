@@ -77,7 +77,7 @@ def is_branch_in_naucse(repo: str, branch: str) -> bool:
     """ Checks if a pushed branch is used in naucse somewhere
     """
     for fork in iterate_forks():
-        if fork["branch"].strip() == branch.strip() and same_repo(fork["repo"], repo):
+        if fork.get("branch", "master").strip() == branch.strip() and same_repo(fork["repo"], repo):
             return True
     return False
 
