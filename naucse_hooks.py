@@ -28,7 +28,7 @@ def get_latest_naucse() -> Path:
         _, path = arca.get_files(app.config["NAUCSE_GIT_URL"], app.config["NAUCSE_BRANCH"])
     except GitCommandError:
         # when the branch is rebased massively, pull doesn't work anymore... So lets delete it and pull again...
-        path = arca.get_path_to_repo(app.config["NAUCSE_GIT_URL"], app.config["NAUCSE_BRANCH"])
+        path = arca.get_path_to_repo_and_branch(app.config["NAUCSE_GIT_URL"], app.config["NAUCSE_BRANCH"])
         if path.exists():
             shutil.rmtree(str(path))
 
