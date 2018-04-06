@@ -115,9 +115,13 @@ def trigger_build(repo, branch):
 
 
 def get_branch_from_ref(ref: str) -> Optional[str]:
-    if not ref.startswith("refs/heads/"):
-        return None
-    return ref.replace("refs/heads/", "")
+    if ref.startswith("refs/heads/"):
+        return ref.replace("refs/heads/", "")
+
+    if ref.startswith("refs/tags/"):
+        return ref.replace("refs/tags/", "")
+
+    return None
 
 
 @app.route('/')

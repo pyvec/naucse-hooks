@@ -46,7 +46,7 @@ def test_same_repo(repo1, repo2, same):
 @parameterized.expand([
     ("refs/heads/master", "master"),
     ("refs/heads/master_branch", "master_branch"),
-    ("refs/tags/v1.0", None),
+    ("refs/tags/v1.0", "v1.0"),
     ("refs/remotes/origin/master", None),
     ("asdfasdf", None)
 
