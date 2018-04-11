@@ -1,3 +1,4 @@
+import hashlib
 import json
 import random
 import re
@@ -6,6 +7,7 @@ import string
 import unittest
 from pathlib import Path
 from unittest.mock import patch
+from uuid import uuid4
 
 import requests_mock
 import travispy
@@ -49,10 +51,14 @@ def test_same_repo(repo1, repo2, same):
     ("refs/tags/v1.0", "v1.0"),
     ("refs/remotes/origin/master", None),
     ("asdfasdf", None)
-
 ])
 def test_get_branch_from_ref(ref, branch):
     assert naucse_hooks.get_branch_from_ref(ref) == branch
+
+
+def test_get_last_commit_in_branch():
+    # sha1 hash is 40 hexdec characters
+    assert len(naucse_hooks.get_last_commit_in_branch("https://github.com/mikicz/naucse-hooks.git", "master")) == 40
 
 
 class NaucseHooksTestCase(unittest.TestCase):
@@ -186,6 +192,7 @@ class NaucseHooksTestCase(unittest.TestCase):
 
     @patch("naucse_hooks.trigger_build")
     @patch("naucse_hooks.get_latest_naucse", lambda: FAKE_REPO)
+    @patch("naucse_hooks.get_last_commit_in_branch", lambda *args: hashlib.sha1(bytes(str(uuid4()), "utf-8")))
     def test_hook(self, mocked_trigger_build):
         # wrong method
         response = self.client.get(self.push_hook)
@@ -279,6 +286,47 @@ class NaucseHooksTestCase(unittest.TestCase):
         })
         assert response.status_code == 200
         assert mocked_trigger_build.call_count == 1
+
+    @patch("naucse_hooks.trigger_build")
+    @patch("naucse_hooks.get_latest_naucse", lambda: FAKE_REPO)
+    @patch("naucse_hooks.get_last_commit_in_branch")
+    def test_dos_protection(self, mocked_last_commit, mocked_trigger_build):
+        mocked_last_commit.return_value = hashlib.sha1(b"initial value")
+
+        response = self.client.post(self.push_hook, data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
+        assert response.status_code == 200
+        assert mocked_trigger_build.call_count == 1
+
+        response = self.client.post(self.push_hook, data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
+        assert response.status_code == 400
+        assert mocked_trigger_build.call_count == 1
+
+        mocked_last_commit.return_value = hashlib.sha1(b"new commit value")
+
+        response = self.client.post(self.push_hook, data=json.dumps({
+            "repository": {
+                "clone_url": "https://github.com/baxterthehacker/public-repo.git",
+            },
+            "ref": "refs/heads/nested_two"
+        }), headers={
+            "X-GitHub-Event": "push"
+        })
+        assert response.status_code == 200
+        assert mocked_trigger_build.call_count == 2
 
     def test_index(self):
         response = self.client.get("/")
