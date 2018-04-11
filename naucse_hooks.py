@@ -1,10 +1,12 @@
 import re
 import urllib.parse
+from collections import defaultdict
 from pathlib import Path
 from typing import Iterator, Dict, Optional
 
 import requests
 import yaml
+import giturlparse
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
 from flask import Flask, request, jsonify
 from travispy import TravisPy
@@ -18,6 +20,9 @@ arca = Arca(backend=CurrentEnvironmentBackend(
     requirements_strategy=RequirementsStrategy.IGNORE
 ))
 
+# {repo: {branch: commit}}
+last_commit: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(dict))
+
 
 def get_latest_naucse() -> Path:
     """ Triggers an pull, returns the path to the pulled repository.
@@ -25,6 +30,25 @@ def get_latest_naucse() -> Path:
     _, path = arca.get_files(app.config["NAUCSE_GIT_URL"], app.config["NAUCSE_BRANCH"])
 
     return path
+
+
+def get_last_commit_in_branch(repo, branch):
+    parsed = giturlparse.parse(repo)
+
+    if not parsed.valid:
+        return None
+
+    if not parsed.github:
+        return None
+
+    url = f"https://api.github.com/repos/{parsed.owner}/{parsed.repo}/commits/{branch}"
+
+    try:
+        response = requests.get(url)
+        assert response.status_code == 200
+        return response.json()["sha"]
+    except: # noqa:
+        return None
 
 
 def _iterate(folder: Path):
@@ -122,15 +146,15 @@ def push_hook():
             "error": text or "Invalid request"
         }), 400
 
-    if "X-GitHub-Event" not in request.headers:
-        return invalid_request("X-GitHub-Event header missing")
+    github_event = request.headers.get("X-GitHub-Event")
 
-    if request.headers["X-GitHub-Event"] == "ping":
+    if github_event is None:
+        return invalid_request("X-GitHub-Event header missing")
+    elif github_event == "ping":
         return jsonify({
             "success": "Hook works!"
         })
-
-    if request.headers["X-GitHub-Event"] != "push":
+    elif github_event != "push":
         return invalid_request("Invalid X-GitHub-Event header, only accepting ping and push.")
 
     body = request.get_json(silent=True, force=True)
@@ -151,6 +175,14 @@ def push_hook():
     if not is_branch_in_naucse(repo, branch):
         return invalid_request("The hook was called for a repo/branch combo that's not present in naucse.python.cz")
 
+    commit = get_last_commit_in_branch(repo, branch)
+
+    if not commit:
+        return invalid_request("Could not load the last commit from GitHub.")
+    elif last_commit[repo][branch] == commit:
+        return invalid_request("A build was already triggered for this commit in this branch.")
+
+    last_commit[repo][branch] = commit
     trigger_build(repo, branch)
 
     return jsonify({
