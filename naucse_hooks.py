@@ -4,11 +4,9 @@ from pathlib import Path
 from typing import Iterator, Dict, Optional
 
 import requests
-import shutil
 import yaml
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
 from flask import Flask, request, jsonify
-from git import GitCommandError
 from travispy import TravisPy
 
 app = Flask(__name__)
@@ -33,13 +31,9 @@ def _iterate(folder: Path):
     """ Recursive function which iterates over a folder contents,
         going deeper to folders and yielding link parsed link files
     """
-    for child in folder.iterdir():  # type: Path
-        if child.is_dir():
-            yield from _iterate(child)
-        else:
-            if child.name == "link.yml":
-                fork = yaml.load(child.read_text())
-                yield fork
+    for child in folder.glob("**/link.yml"):  # type: Path
+        fork = yaml.load(child.read_text())
+        yield fork
 
 
 def iterate_forks() -> Iterator[Dict[str, str]]:
