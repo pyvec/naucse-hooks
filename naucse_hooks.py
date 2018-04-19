@@ -8,7 +8,9 @@ import requests
 import yaml
 import giturlparse
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, flash, redirect, url_for
+from flask_github import GitHub
+from flask_session import Session
 from travispy import TravisPy
 
 app = Flask(__name__)
@@ -19,6 +21,9 @@ arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
     requirements_strategy=RequirementsStrategy.IGNORE
 ))
+github = GitHub(app)
+Session(app)
+
 
 # {repo: {branch: commit}}
 last_commit: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(dict))
@@ -47,7 +52,7 @@ def get_last_commit_in_branch(repo, branch):
         response = requests.get(url)
         assert response.status_code == 200
         return response.json()["sha"]
-    except: # noqa:
+    except BaseException:
         return None
 
 
@@ -136,7 +141,31 @@ def get_branch_from_ref(ref: str) -> Optional[str]:
 
 @app.route('/')
 def index():
-    return "Please visit <a href='https://github.com/mikicz/naucse-hooks'>GitHub</a> to see usage."
+    print(session.get("github_access_token"))
+
+    if session.get("github_access_token") is None:
+        res = "You are not logged in."
+    else:
+        res = "You  are logged in."
+
+    return res + " Please visit <a href='https://github.com/mikicz/naucse-hooks'>GitHub</a> to see usage."
+
+
+@app.route('/login')
+def login():
+    return github.authorize()
+
+
+@app.route('/github-callback')
+@github.authorized_handler
+def authorized(oauth_token):
+    if oauth_token is None:
+        flash("Authorization failed.")
+        return redirect(url_for('index'))
+
+    session["github_access_token"] = oauth_token
+
+    return redirect(url_for('index'))
 
 
 @app.route('/hooks/push', methods=["POST"])

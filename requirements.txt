@@ -9,3 +9,5 @@ parameterized
 requests_mock
 travispy
 giturlparse
+github-flask
+Flask-Session
