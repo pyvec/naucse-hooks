@@ -204,13 +204,13 @@ def activate(login, name):
     try:
         github.get(f"repos/{login}/{name}")
     except GitHubError:
-        flash("Repozitář neexistuje nebo k němu nemáte přístup!", "error")
+        flash(f"Repozitář {login}/{name} neexistuje nebo k němu nemáte přístup!", "error")
         return redirect(url_for(("index")))
 
     try:
         hooks = github.get(f"repos/{login}/{name}/hooks")
     except GitHubError:
-        flash("U repozitáře nemůžete číst webhooky!", "error")
+        flash(f"U repozitáře {login}/{name} nemůžete číst webhooky!", "error")
         return redirect(url_for(("index")))
 
     already_exists = False
@@ -221,23 +221,21 @@ def activate(login, name):
             break
 
     if already_exists:
-        flash("Webhook již v repozitáři existuje!", "warning")
+        flash(f"Webhook již v repozitáři {login}/{name} existuje!", "warning")
         return redirect(url_for("index"))
 
     try:
-        response = github.post(f"repos/{login}/{name}/hooks", {
+        github.post(f"repos/{login}/{name}/hooks", {
             "name": "web",
             "config": {
                 "url": app.config["PUSH_HOOK"],
                 "content_type": "json"
             }
         })
-        print(response)
-        flash("Webhook nainstalován!", "success")
-    except GitHubError as e:
-        print(e)
-        print(e.response.json())
-        flash("Webhook se nepovedlo nainstalovat, nejspíše nemáte právo ho přidávat.", "error")
+        flash(f"Webhook nainstalován do repozitáře {login}/{name}!", "success")
+    except GitHubError:
+        flash(f"Webhook se do repozitáře {login}/{name} nepovedlo nainstalovat, nejspíše nemáte právo ho přidávat.",
+              "error")
 
     return redirect(url_for("index"))
 
