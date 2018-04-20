@@ -10,15 +10,19 @@ import giturlparse
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
 from flask import Flask, request, jsonify
 from travispy import TravisPy
+from raven.contrib.flask import Sentry
+
 
 app = Flask(__name__)
 app.config.from_pyfile("settings.cfg")
 app.config.from_pyfile("local_settings.cfg", silent=True)
+sentry = Sentry(app, dsn=app.config["SENTRY_DSN"])
 
 arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
     requirements_strategy=RequirementsStrategy.IGNORE
 ))
+
 
 # {repo: {branch: commit}}
 last_commit: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(dict))

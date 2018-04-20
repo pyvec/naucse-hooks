@@ -24,10 +24,11 @@ The hook also reacts to ping events which are sent by GitHub when the webhook is
   
   + Create a file `local_settings.cfg`. It uses Pythonic syntax, see `settings.cfg` for reference.
   + List of available settings
-    -  **NAUCSE_GIT_URL** - http(s) link to base naucse git 
-    -  **NAUCSE_BRANCH** - branch used to render naucse
-    -  **TRAVIS_REPO_SLUG** - slug of the repo on Travis
-    -  **TRAVIS_TOKEN** - see https://docs.travis-ci.com/user/triggering-builds/
+    - **NAUCSE_GIT_URL** - http(s) link to base naucse git
+    - **NAUCSE_BRANCH** - branch used to render naucse
+    - **TRAVIS_REPO_SLUG** - slug of the repo on Travis
+    - **TRAVIS_TOKEN** - see https://docs.travis-ci.com/user/triggering-builds/
+    - **SENTRY_DSN** - a DSN for Sentry, to use Raven to catch errors (optional)
 
 ## How to deploy using mod_wsgi:
 
