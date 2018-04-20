@@ -153,19 +153,33 @@ def get_branch_from_ref(ref: str) -> Optional[str]:
 
 
 @app.route('/')
-def index():
+@app.route('/all/', defaults={"all": True}, endpoint="all")
+def index(all=False):
     access_token = session.get("github_access_token")
     repos = None
 
     if access_token is not None:
-        repos = github.get(f"user/repos", all_pages=True)
+        user = github.get("user")
 
-        # sort the repos by their name, however list the naucse.python.cz as first (False is sorted before True)
-        repos.sort(key=lambda x: (x["name"] != "naucse.python.cz", x["name"]))
+        repos = github.get(f"user/repos", all_pages=True,
+                           data={"visibility": "public"})
+
+        if all:
+            # list naucse.python.cz repos first,
+            # then al the users
+            # then the rest ordered by the name of the org
+            # (False is sorted before True)
+            repos.sort(key=lambda x: (x["name"] != "naucse.python.cz",
+                                      x["owner"]["login"] != user["login"],
+                                      x["full_name"]))
+        else:
+            repos = [x for x in repos if x["name"] == "naucse.python.cz"]
+            repos.sort(key=lambda x: (x["owner"]["login"] != user["login"], x["full_name"]))
 
     return render_template("index.html",
                            logged_in=access_token is not None,
-                           repos=repos)
+                           repos=repos,
+                           all=all)
 
 
 @app.route('/login')

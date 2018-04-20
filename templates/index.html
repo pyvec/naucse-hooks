@@ -22,7 +22,7 @@
                     <div class="text-center">
                         <br>
                         {% if not logged_in %}
-                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login using GitHub</a>
+                            <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Příhlásit se přes GitHub</a>
                             <p>
                                 <small>
                                     Potřebujeme přístup k veřejným repozitářům a povolení vytvářet webhooky.
@@ -30,16 +30,30 @@
                                 </small>
                             </p>
                         {% else %}
-                            <a href="{{ url_for('logout') }}" class="btn btn-outline-warning">Logout</a>
+                            <a href="{{ url_for('logout') }}" class="btn btn-outline-warning">Odhlásit se</a>
                         {% endif %}
                     </div>
 
                     {% if logged_in %}
                         <hr>
                         <h5>Aktivovat webhook:</h5>
+
+                        <div class="text-center">
+                            {% if all %}
+                                <a href="{{ url_for("index") }}" class="btn btn-sm btn-outline-info">
+                                    Pouze s názvem naucse.python.cz
+                                </a>
+                            {% else %}
+                                <a href="{{ url_for("all") }}" class="btn btn-sm btn-outline-info">
+                                    Zobrazit všechny
+                                </a>
+                            {% endif %}
+                            <br><br>
+                        </div>
+
                         <ul class="list-group list-group-flush">
                             {% for repo in repos %}
-                                <li class="list-group-item">
+                                <li class="list-group-item {% if repo.name == 'naucse.python.cz' %}bg-light{% endif %}">
                                     {{ repo.full_name }}
                                     <a href="{{ url_for('activate', login=repo.owner.login, name=repo.name) }}"
                                        class="btn btn-sm btn-outline-primary float-right">Aktivovat</a>
