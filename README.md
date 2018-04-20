@@ -52,8 +52,15 @@ The app has to be able to write to file ``naucse_hooks.log`` and to the folder `
         from naucse_hooks import app as application
 
   * Add this to Apache config
-  
+
         <VirtualHost *:80>
+            ServerName <domain>
+            RewriteEngine On
+            RewriteCond %{HTTPS} off
+            RewriteRule (.*) https://<domain>%{REQUEST_URI}
+        </VirtualHost>
+
+        <VirtualHost *:443>
             ServerName      <domain>
     
             ErrorLog <path to folder containg logs>/logs/error.log
@@ -75,6 +82,10 @@ The app has to be able to write to file ``naucse_hooks.log`` and to the folder `
             WSGIApplicationGroup %{GROUP}
             WSGIScriptAlias / <path to root folder>/wsgi.py
             WSGIScriptReloading On
+
+            SSLCertificateFile /etc/letsencrypt/live/<domain>/fullchain.pem
+            SSLCertificateKeyFile /etc/letsencrypt/live/<domain>/privkey.pem
+            Include /etc/letsencrypt/options-ssl-apache.conf
 
         </VirtualHost>
 
