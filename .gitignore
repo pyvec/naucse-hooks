@@ -105,3 +105,4 @@ ENV/
 .idea
 .arca
 local_settings.cfg
+naucse_hooks.log
