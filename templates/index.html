@@ -20,8 +20,15 @@
                     {% endwith %}
 
                     <div class="text-center">
+                        <br>
                         {% if not logged_in %}
                             <a href="{{ url_for('login') }}" class="btn btn-outline-primary">Login using GitHub</a>
+                            <p>
+                                <small>
+                                    Potřebujeme přístup k veřejným repozitářům a povolení vytvářet webhooky.
+                                    Povolení využíváme jen k zobrazení všech repozitářů a instalaci webhooků – ověřit si to můžeš ve zdrojových kódech, odkaz je v patičce.
+                                </small>
+                            </p>
                         {% else %}
                             <a href="{{ url_for('logout') }}" class="btn btn-outline-warning">Logout</a>
                         {% endif %}

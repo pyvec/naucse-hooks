@@ -170,7 +170,7 @@ def index():
 
 @app.route('/login')
 def login():
-    return github.authorize("write:repo_hook")
+    return github.authorize("public_repo,write:repo_hook")
 
 
 @app.route('/logout')
