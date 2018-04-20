@@ -158,9 +158,7 @@ def index():
     repos = None
 
     if access_token is not None:
-        user = github.get("user")
-
-        repos = github.get(f"users/{user['login']}/repos")
+        repos = github.get(f"user/repos", all_pages=True)
 
         # sort the repos by their name, however list the naucse.python.cz as first (False is sorted before True)
         repos.sort(key=lambda x: (x["name"] != "naucse.python.cz", x["name"]))

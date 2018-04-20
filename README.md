@@ -41,6 +41,8 @@ The installation is at ``/``. The OAuth callback is at ``/github-callback``.
 
 ## How to deploy using mod_wsgi:
 
+The app has to be able to write to file ``naucse_hooks.log`` and to the folder ``.sessions``.
+
 (<> means something you have to replace with your value) 
 
   + Create a file called `wsgi.py` in the root folder:
