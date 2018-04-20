@@ -9,7 +9,9 @@ import requests
 import yaml
 import giturlparse
 from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session, flash, redirect, url_for, render_template
+from flask_github import GitHub, GitHubError
+from flask_session import Session
 from travispy import TravisPy
 from raven.contrib.flask import Sentry
 
@@ -31,6 +33,9 @@ arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
     requirements_strategy=RequirementsStrategy.IGNORE
 ))
+github = GitHub(app)
+Session(app)
+
 
 # {repo: {branch: commit}}
 last_commit: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(dict))
@@ -149,7 +154,97 @@ def get_branch_from_ref(ref: str) -> Optional[str]:
 
 @app.route('/')
 def index():
-    return "Please visit <a href='https://github.com/mikicz/naucse-hooks'>GitHub</a> to see usage."
+    access_token = session.get("github_access_token")
+    repos = None
+
+    if access_token is not None:
+        user = github.get("user")
+
+        repos = github.get(f"users/{user['login']}/repos")
+
+        # sort the repos by their name, however list the naucse.python.cz as first (False is sorted before True)
+        repos.sort(key=lambda x: (x["name"] != "naucse.python.cz", x["name"]))
+
+    return render_template("index.html",
+                           logged_in=access_token is not None,
+                           repos=repos)
+
+
+@app.route('/login')
+def login():
+    return github.authorize("write:repo_hook")
+
+
+@app.route('/logout')
+def logout():
+    session.pop("github_access_token")
+
+    return redirect(url_for('index'))
+
+
+@app.route('/activate/<string:login>/<string:name>/')
+def activate(login, name):
+    access_token = session.get("github_access_token")
+    if access_token is None:
+        flash("Nejste přihlášený/á!", "error")
+        return redirect(url_for("index"))
+
+    try:
+        github.get(f"repos/{login}/{name}")
+    except GitHubError:
+        flash("Repozitář neexistuje nebo k němu nemáte přístup!", "error")
+        return redirect(url_for(("index")))
+
+    try:
+        hooks = github.get(f"repos/{login}/{name}/hooks")
+    except GitHubError:
+        flash("U repozitáře nemůžete číst webhooky!", "error")
+        return redirect(url_for(("index")))
+
+    already_exists = False
+
+    for hook in hooks:
+        if hook.get("config", {}).get("url") == app.config["PUSH_HOOK"]:
+            already_exists = True
+            break
+
+    if already_exists:
+        flash("Webhook již v repozitáři existuje!", "warning")
+        return redirect(url_for("index"))
+
+    try:
+        response = github.post(f"repos/{login}/{name}/hooks", {
+            "name": "web",
+            "config": {
+                "url": app.config["PUSH_HOOK"],
+                "content_type": "json"
+            }
+        })
+        print(response)
+        flash("Webhook nainstalován!", "success")
+    except GitHubError as e:
+        print(e)
+        print(e.response.json())
+        flash("Webhook se nepovedlo nainstalovat, nejspíše nemáte právo ho přidávat.", "error")
+
+    return redirect(url_for("index"))
+
+
+@app.route('/github-callback')
+@github.authorized_handler
+def authorized(oauth_token):
+    if oauth_token is None:
+        flash("Přihlášení selhalo!", "error")
+        return redirect(url_for('index'))
+
+    session["github_access_token"] = oauth_token
+
+    return redirect(url_for('index'))
+
+
+@github.access_token_getter
+def token_getter():
+    return session.get("github_access_token")
 
 
 @app.route('/hooks/push', methods=["POST"])

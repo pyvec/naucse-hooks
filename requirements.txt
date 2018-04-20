@@ -10,3 +10,6 @@ requests_mock
 travispy
 giturlparse
 raven[flask]
+github-flask
+Flask-Session
+
