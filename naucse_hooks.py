@@ -1,3 +1,4 @@
+import logging.handlers
 import re
 import urllib.parse
 from collections import defaultdict
@@ -12,10 +13,21 @@ from flask import Flask, request, jsonify, session, flash, redirect, url_for, re
 from flask_github import GitHub, GitHubError
 from flask_session import Session
 from travispy import TravisPy
+from raven.contrib.flask import Sentry
+
 
 app = Flask(__name__)
 app.config.from_pyfile("settings.cfg")
 app.config.from_pyfile("local_settings.cfg", silent=True)
+sentry = Sentry(app, dsn=app.config["SENTRY_DSN"])
+
+handler = logging.handlers.RotatingFileHandler("naucse_hooks.log")
+formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+
+handler.setLevel(logging.INFO)
+handler.setFormatter(formatter)
+
+app.logger.addHandler(handler)
 
 arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
@@ -53,6 +65,7 @@ def get_last_commit_in_branch(repo, branch):
         assert response.status_code == 200
         return response.json()["sha"]
     except BaseException:
+        sentry.captureException()
         return None
 
 
@@ -243,42 +256,56 @@ def push_hook():
 
     github_event = request.headers.get("X-GitHub-Event")
 
+    body = request.get_json(silent=True, force=True)
+    repo = (body or {}).get("repository", {}).get("clone_url")
+
     if github_event is None:
+        app.logger.warning("X-GitHub-Event header missing from repo %s", repo)
+        app.logger.debug("Body: %s", body)
         return invalid_request("X-GitHub-Event header missing")
     elif github_event == "ping":
+        app.logger.info("Responded to a ping event from repo %s", repo)
         return jsonify({
             "success": "Hook works!"
         })
     elif github_event != "push":
+        app.logger.warning("Invalid X-GitHub-Event %s from repo %s", github_event, repo)
         return invalid_request("Invalid X-GitHub-Event header, only accepting ping and push.")
 
-    body = request.get_json(silent=True, force=True)
-
     if body is None:
+        app.logger.warning("Could not decode body to JSON.")
+        app.logger.debug(request.get_data())
         return invalid_request()
 
     try:
         repo = body["repository"]["clone_url"]
         branch = get_branch_from_ref(body["ref"])
     except KeyError:
-        app.logger.error("Keys missing from request")
+        app.logger.warning("Keys missing from request")
+        app.logger.debug(body)
         return invalid_request()
 
     if branch is None:
+        app.logger.warning("Could not get branch from ref %s from repo %s", repo, (body or {}).get("ref"))
         return invalid_request("Nothing was pushed to a branch.")
 
     if not is_branch_in_naucse(repo, branch):
+        app.logger.warning("Branch %s from repo %s is not used in naucse.python.cz", branch, repo)
         return invalid_request("The hook was called for a repo/branch combo that's not present in naucse.python.cz")
 
     commit = get_last_commit_in_branch(repo, branch)
 
     if not commit:
+        app.logger.warning("Could not load the last commit in branch %s in repo %s", branch, repo)
         return invalid_request("Could not load the last commit from GitHub.")
     elif last_commit[repo][branch] == commit:
+        app.logger.warning("A build was already triggered for branch %s from repo %s", branch, repo)
         return invalid_request("A build was already triggered for this commit in this branch.")
 
     last_commit[repo][branch] = commit
     trigger_build(repo, branch)
+
+    app.logger.info("Triggered build of naucse.python.cz, branch %s, repo %s", branch, repo)
 
     return jsonify({
         "success": "naucse.python.cz build was triggered."

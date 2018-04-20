@@ -106,3 +106,4 @@ ENV/
 .arca
 local_settings.cfg
 .sessions
+naucse_hooks.log
