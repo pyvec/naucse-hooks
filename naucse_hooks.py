@@ -132,7 +132,7 @@ def trigger_build(repo, branch):
         json={
             "request": {
                 "branch": app.config["NAUCSE_BRANCH"],
-                "message": f"Triggered by {arca.repo_id(repo)}/{branch}"
+                "message": f"Triggered by {repo}/{branch}"
             }
         },
         headers={
@@ -161,13 +161,12 @@ def index(all=False):
     if access_token is not None:
         user = github.get("user")
 
-        repos = github.get(f"user/repos", all_pages=True,
-                           data={"visibility": "public"})
+        repos = github.get("user/repos", all_pages=True, data={"visibility": "public"})
 
         if all:
-            # list naucse.python.cz repos first,
-            # then al the users
-            # then the rest ordered by the name of the org
+            # list naucse.python.cz repos first
+            # then all the users repos ordered by name
+            # then the rest ordered by the name of the org and then by the name
             # (False is sorted before True)
             repos.sort(key=lambda x: (x["name"] != "naucse.python.cz",
                                       x["owner"]["login"] != user["login"],
