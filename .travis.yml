@@ -6,6 +6,8 @@ cache:
 notifications:
   email: false
 install:
+# pytest is already installed, we need a greater version
+- pip install --upgrade pytest
 - pip install -r requirements.txt
 script:
 - pytest
