@@ -28,6 +28,7 @@ handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
 
 app.logger.addHandler(handler)
+app.logger.setLevel(logging.INFO)
 
 arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
