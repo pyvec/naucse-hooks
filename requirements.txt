@@ -1,5 +1,5 @@
 Flask
-git+https://github.com/mikicz/arca.git#egg=arca
+arca>=0.3.1
 pyyaml
 pytest
 pytest-cov
