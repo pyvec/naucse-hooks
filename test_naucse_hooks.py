@@ -40,6 +40,7 @@ def test_normalize_repo(denormalized, normalized):
     ("http://github.com/baxterthehacker/public-repo", "https://github.com/baxterthehacker/public-repo.git", True),
     ("https://github.com/baxterthehacker/public-repo.git", "https://github.com/baxthehacker/public-repo.git", False),
     ("https://github.com/baxterthehacker/public-repo.git", "https://github.com/baxterthehacker/public.git", False),
+    ("https://github.com/prusinsky/naucse.python.cz/", "https://github.com/prusinsky/naucse.python.cz.git", True),
 ])
 def test_same_repo(repo1, repo2, same):
     assert naucse_hooks.same_repo(repo1, repo2) == same
