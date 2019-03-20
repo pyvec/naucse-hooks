@@ -91,6 +91,7 @@ def normalize_repo(repo) -> str:
     """
     repo = re.sub(r"^http[s]?://", "", repo)
     repo = re.sub(r".git$", "", repo)
+    repo = re.sub(r"/$", "", repo)
 
     return repo
 
