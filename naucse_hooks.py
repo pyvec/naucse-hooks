@@ -8,7 +8,7 @@ from typing import Iterator, Dict, Optional
 import requests
 import yaml
 import giturlparse
-from arca import Arca, CurrentEnvironmentBackend, RequirementsStrategy
+from arca import Arca, CurrentEnvironmentBackend
 from flask import Flask, request, jsonify, session, flash, redirect, url_for, render_template
 from flask_github import GitHub, GitHubError
 from flask_session import Session
@@ -31,7 +31,6 @@ app.logger.addHandler(handler)
 
 arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
-    requirements_strategy=RequirementsStrategy.IGNORE
 ))
 github = GitHub(app)
 Session(app)
