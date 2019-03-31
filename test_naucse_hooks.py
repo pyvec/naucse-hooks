@@ -59,7 +59,7 @@ def test_get_branch_from_ref(ref, branch):
 
 def test_get_last_commit_in_branch():
     # sha1 hash is 40 hexdec characters
-    assert len(naucse_hooks.get_last_commit_in_branch("https://github.com/mikicz/naucse-hooks.git", "master")) == 40
+    assert len(naucse_hooks.get_last_commit_in_branch("https://github.com/pyvec/naucse-hooks.git", "master")) == 40
 
 
 @pytest.fixture()
