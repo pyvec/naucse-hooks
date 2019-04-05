@@ -73,7 +73,7 @@ def _iterate(folder: Path):
         going deeper to folders and yielding link parsed link files
     """
     for child in folder.glob("**/link.yml"):  # type: Path
-        fork = yaml.load(child.read_text())
+        fork = yaml.safe_load(child.read_text())
         yield fork
 
 
