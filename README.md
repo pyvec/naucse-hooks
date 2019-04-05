@@ -10,18 +10,24 @@ The installation is at ``/``. The OAuth callback is at ``/github-callback``.
 
 ## How to install:
 
-    pip install -r requirements.txt
+First, install pipenv:
+
+    python -m pip install pipenv
+
+Then, install requirements using pipenv:
+
+    pipenv install --dev
 
 ## How to run:
 
     export FLASK_APP=naucse_hooks.py
-    flask run
+    pipenv run flask run
 
 ## How to run in debug:
 
     export FLASK_DEBUG=1
     export FLASK_APP=naucse_hooks.py
-    flask run
+    pipenv run flask run
 
 ## How to configure:
   
