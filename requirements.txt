@@ -11,5 +11,5 @@ travispy
 giturlparse
 raven[flask]
 github-flask
-Flask-Session
-
+# https://github.com/fengsp/flask-session/issues/112
+git+https://github.com/rayluo/flask-session@0.3.x#egg=flask-session
