@@ -127,7 +127,7 @@ def trigger_build(repo, branch):
 
     # unfortunately, TravisPy doesn't provide a method to trigger a build, so triggering manually:
     response = requests.post(
-        "https://api.travis-ci.org/repo/{}/requests".format(
+        "https://api.travis-ci.com/repo/{}/requests".format(
             urllib.parse.quote_plus(app.config["TRAVIS_REPO_SLUG"])
         ),
         json={
