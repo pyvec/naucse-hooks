@@ -14,7 +14,7 @@ from flask_github import GitHub, GitHubError
 from flask_session import Session
 from travispy import TravisPy
 from raven.contrib.flask import Sentry
-
+from travispy.travispy import PRIVATE
 
 app = Flask(__name__)
 app.config.from_pyfile("settings.cfg")
@@ -117,7 +117,7 @@ def trigger_build(repo, branch):
     if not app.config["TRAVIS_REPO_SLUG"] or not app.config["TRAVIS_TOKEN"]:
         return
 
-    t = TravisPy(app.config['TRAVIS_TOKEN'])
+    t = TravisPy(app.config['TRAVIS_TOKEN'], uri=PRIVATE)
 
     # it doesn't make sense for multiple builds of the same branch to run at the same time
     # so if some are still running for our target branch, lets stop them

@@ -145,7 +145,7 @@ def test_is_branch_in_naucse(fake_repo, mocker, repo, branch, present):
 @patch("travispy.TravisPy.builds", lambda *args, **kwargs: [])
 def test_trigger_build(testapp):
     with requests_mock.Mocker() as m:
-        m.post(re.compile(r"https://api.travis-ci.org/repo/[^/]+/requests"),
+        m.post(re.compile(r"https://api.travis-ci.com/repo/[^/]+/requests"),
                json={"success": True},
                status_code=200)
 
@@ -155,7 +155,7 @@ def test_trigger_build(testapp):
 
         # based on definition in https://docs.travis-ci.com/user/triggering-builds/
         assert m.last_request.method == "POST"
-        assert m.last_request.url == "https://api.travis-ci.org/repo/pyvec%2Fnaucse.python.cz/requests"
+        assert m.last_request.url == "https://api.travis-ci.com/repo/pyvec%2Fnaucse.python.cz/requests"
         assert m.last_request.json()["request"]["branch"] == "master"
         assert m.last_request.headers["Content-Type"] == "application/json"
         assert m.last_request.headers["Authorization"] == f"token {testapp.config['TRAVIS_TOKEN']}"
@@ -196,7 +196,7 @@ def test_cancel_previous_builds(mocked_cancel_build):
 
     with requests_mock.Mocker() as m:
         with patch("travispy.TravisPy.builds", create_test_builds):
-            m.post(re.compile(r"https://api.travis-ci.org/repo/[^/]+/requests"),
+            m.post(re.compile(r"https://api.travis-ci.com/repo/[^/]+/requests"),
                    json={"success": True},
                    status_code=200)
 
