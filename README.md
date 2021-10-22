@@ -1,12 +1,8 @@
-# Webhooks for naucse.python.cz
+# Deployment trigger for naucse.python.cz
 
-There's current only one hook at ``/hooks/push`` which reacts to GitHub push event and triggers a rebuild of naucse.
-In case there are already some builds running on Travis for the target branch, they're cancelled.
-The build is only triggered if the pushed branch is used as a link in the root naucse repository. 
-The hook also reacts to ping events which are sent by GitHub when the webhook is being setup.
-
-Appart for the hook, this app can install the hook to repositories, if everything is configured.
-The installation is at ``/``. The OAuth callback is at ``/github-callback``.
+You can send a POST request to ``/trigger``, which will trigger a rebuild of naucse. The request
+has to contain keys `repository` and `branch`. This repository and branch has to be used somewhere
+in naucse, otherwise no deployment will be triggered.
 
 ## How to install:
 
@@ -29,15 +25,8 @@ The installation is at ``/``. The OAuth callback is at ``/github-callback``.
   + List of available settings for hooks:
     - **NAUCSE_GIT_URL** - http(s) link to base naucse git
     - **NAUCSE_BRANCH** - branch used to render naucse
-    - **TRAVIS_REPO_SLUG** - slug of the repo on Travis
-    - **TRAVIS_TOKEN** - see https://docs.travis-ci.com/user/triggering-builds/
+    - **GITHUB_TOKEN** - token used to trigger CI workflows in naucse repository
     - **SENTRY_DSN** - a DSN for Sentry, to use Raven to catch errors (optional)
-  + List of available settings for hook installation:
-    - **SESSION_COOKIE_DOMAIN** - needs to be either ``None`` or the domain the app is deployed on
-    - **SECRET_KEY** - a random string used for singing
-    - **GITHUB_CLIENT_ID** - the client ID for the GitHub app
-    - **GITHUB_CLIENT_SECRET** - the client secret for the GitHub app
-    - **PUSH_HOOK** - the URL that should be installed
 
 ## How to deploy using mod_wsgi:
 
@@ -88,5 +77,3 @@ The app has to be able to write to file ``naucse_hooks.log`` and to the folder `
             Include /etc/letsencrypt/options-ssl-apache.conf
 
         </VirtualHost>
-
-

@@ -1,20 +1,15 @@
 import logging.handlers
 import re
-import urllib.parse
 from collections import defaultdict
 from pathlib import Path
-from typing import Iterator, Dict, Optional
+from typing import Dict, Iterator
 
+import giturlparse
 import requests
 import yaml
-import giturlparse
 from arca import Arca, CurrentEnvironmentBackend
-from flask import Flask, request, jsonify, session, flash, redirect, url_for, render_template
-from flask_github import GitHub, GitHubError
-from flask_session import Session
-from travispy import TravisPy
+from flask import Flask, jsonify, request
 from raven.contrib.flask import Sentry
-from travispy.travispy import PRIVATE
 
 app = Flask(__name__)
 app.config.from_pyfile("settings.cfg")
@@ -22,7 +17,8 @@ app.config.from_pyfile("local_settings.cfg", silent=True)
 sentry = Sentry(app, dsn=app.config["SENTRY_DSN"])
 
 handler = logging.handlers.RotatingFileHandler("naucse_hooks.log")
-formatter = logging.Formatter("[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
+formatter = logging.Formatter(
+    "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s")
 
 handler.setLevel(logging.INFO)
 handler.setFormatter(formatter)
@@ -33,9 +29,6 @@ app.logger.setLevel(logging.INFO)
 arca = Arca(backend=CurrentEnvironmentBackend(
     current_environment_requirements=None,
 ))
-github = GitHub(app)
-Session(app)
-
 
 # {repo: {branch: commit}}
 last_commit: Dict[str, Dict[str, str]] = defaultdict(lambda: defaultdict(dict))
@@ -73,9 +66,20 @@ def _iterate(folder: Path):
     """ Recursive function which iterates over a folder contents,
         going deeper to folders and yielding link parsed link files
     """
-    for child in folder.glob("**/link.yml"):  # type: Path
+    for child in folder.glob("**/link.yml"):
         fork = yaml.safe_load(child.read_text())
         yield fork
+
+    main_course_path = folder / "courses.yml"
+    if not main_course_path.exists():
+        return
+
+    courses = yaml.safe_load(main_course_path.read_text())
+    for course in courses.values():
+        yield {
+            "branch": course.get("branch", "master"),
+            "repo": course.get("url")
+        }
 
 
 def iterate_forks() -> Iterator[Dict[str, str]]:
@@ -106,217 +110,75 @@ def is_branch_in_naucse(repo: str, branch: str) -> bool:
     """ Checks if a pushed branch is used in naucse somewhere
     """
     for fork in iterate_forks():
-        if fork.get("branch", "master").strip() == branch.strip() and same_repo(fork["repo"], repo):
+        if fork.get("branch", "master").strip() == branch.strip() and same_repo(fork["repo"],
+                                                                                repo):
             return True
     return False
 
 
 def trigger_build(repo, branch):
-    """ Sends a request to Travis, rebuilding the content
+    """ Sends a request to GitHub, rebuilding the content
     """
-    if not app.config["TRAVIS_REPO_SLUG"] or not app.config["TRAVIS_TOKEN"]:
+    if not app.config["NAUCSE_GIT_URL"] or not app.config["NAUCSE_BRANCH"]:
         return
 
-    t = TravisPy(app.config['TRAVIS_TOKEN'], uri=PRIVATE)
+    # Strip `github.com/` prefix
+    parsed = giturlparse.parse(app.config["NAUCSE_GIT_URL"])
+    if not parsed.valid or not parsed.github:
+        return
 
-    # it doesn't make sense for multiple builds of the same branch to run at the same time
-    # so if some are still running for our target branch, lets stop them
-    for build in t.builds(slug=app.config["TRAVIS_REPO_SLUG"]):
-        if not build.pull_request and build.pending and build.commit.branch == app.config["NAUCSE_BRANCH"]:
-            build.cancel()
-
-    # unfortunately, TravisPy doesn't provide a method to trigger a build, so triggering manually:
+    repo_path = f"{parsed.owner}/{parsed.repo}"
     response = requests.post(
-        "https://api.travis-ci.com/repo/{}/requests".format(
-            urllib.parse.quote_plus(app.config["TRAVIS_REPO_SLUG"])
-        ),
+        f"https://api.github.com/repos/{repo_path}/dispatches",
         json={
-            "request": {
-                "branch": app.config["NAUCSE_BRANCH"],
-                "message": f"Triggered by {repo}/{branch}"
-            }
+            "event_type": "Redeploy",
+            "client_payload": {"message": f"Triggered by {repo}/{branch}"}
         },
         headers={
-            "Authorization": f"token {app.config['TRAVIS_TOKEN']}",
-            "Travis-API-Version": "3"
+            "Authorization": f"token {app.config['GITHUB_TOKEN']}",
+            "Accept": "application/vnd.github.v3+json"
         }
     )
     response.raise_for_status()
 
 
-def get_branch_from_ref(ref: str) -> Optional[str]:
-    if ref.startswith("refs/heads/"):
-        return ref.replace("refs/heads/", "")
-
-    if ref.startswith("refs/tags/"):
-        return ref.replace("refs/tags/", "")
-
-    return None
-
-
-@app.route('/')
-@app.route('/all/', defaults={"all": True}, endpoint="all")
-def index(all=False):
-    access_token = session.get("github_access_token")
-    repos = None
-
-    if access_token is not None:
-        user = github.get("user")
-
-        repos = github.get("user/repos", all_pages=True, data={"visibility": "public"})
-
-        if all:
-            # list naucse.python.cz repos first
-            # then all the users repos ordered by name
-            # then the rest ordered by the name of the org and then by the name
-            # (False is sorted before True)
-            repos.sort(key=lambda x: (x["name"] != "naucse.python.cz",
-                                      x["owner"]["login"] != user["login"],
-                                      x["full_name"]))
-        else:
-            repos = [x for x in repos if x["name"] == "naucse.python.cz"]
-            repos.sort(key=lambda x: (x["owner"]["login"] != user["login"], x["full_name"]))
-
-    return render_template("index.html",
-                           logged_in=access_token is not None,
-                           repos=repos,
-                           all=all)
-
-
-@app.route('/login')
-def login():
-    return github.authorize("public_repo,write:repo_hook")
-
-
-@app.route('/logout')
-def logout():
-    session.pop("github_access_token")
-
-    return redirect(url_for('index'))
-
-
-@app.route('/activate/<string:login>/<string:name>/')
-def activate(login, name):
-    access_token = session.get("github_access_token")
-    if access_token is None:
-        flash("Nejste přihlášený/á!", "error")
-        return redirect(url_for("index"))
-
-    try:
-        github.get(f"repos/{login}/{name}")
-    except GitHubError:
-        flash(f"Repozitář {login}/{name} neexistuje nebo k němu nemáte přístup!", "error")
-        return redirect(url_for(("index")))
-
-    try:
-        hooks = github.get(f"repos/{login}/{name}/hooks")
-    except GitHubError:
-        flash(f"U repozitáře {login}/{name} nemůžete číst webhooky!", "error")
-        return redirect(url_for(("index")))
-
-    already_exists = False
-
-    for hook in hooks:
-        if hook.get("config", {}).get("url") == app.config["PUSH_HOOK"]:
-            already_exists = True
-            break
-
-    if already_exists:
-        flash(f"Webhook již v repozitáři {login}/{name} existuje!", "warning")
-        return redirect(url_for("index"))
-
-    try:
-        github.post(f"repos/{login}/{name}/hooks", {
-            "name": "web",
-            "config": {
-                "url": app.config["PUSH_HOOK"],
-                "content_type": "json"
-            }
-        })
-        flash(f"Webhook nainstalován do repozitáře {login}/{name}!", "success")
-    except GitHubError:
-        flash(f"Webhook se do repozitáře {login}/{name} nepovedlo nainstalovat, nejspíše nemáte právo ho přidávat.",
-              "error")
-
-    return redirect(url_for("index"))
-
-
-@app.route('/github-callback')
-@github.authorized_handler
-def authorized(oauth_token):
-    if oauth_token is None:
-        flash("Přihlášení selhalo!", "error")
-        return redirect(url_for('index'))
-
-    session["github_access_token"] = oauth_token
-
-    return redirect(url_for('index'))
-
-
-@github.access_token_getter
-def token_getter():
-    return session.get("github_access_token")
-
-
-@app.route('/hooks/push', methods=["POST"])
-def push_hook():
+@app.route("/trigger", methods=["POST"])
+def refresh_trigger():
     def invalid_request(text=None):
         return jsonify({
             "error": text or "Invalid request"
         }), 400
 
-    github_event = request.headers.get("X-GitHub-Event")
+    body = request.get_json(silent=True, force=True) or {}
 
-    body = request.get_json(silent=True, force=True)
-    repo = (body or {}).get("repository", {}).get("clone_url")
+    repo = body.get("repository")
+    if not repo:
+        app.logger.warning(f"Invalid request: {repo}")
+        return invalid_request("Missing `repository` key")
 
-    if github_event is None:
-        app.logger.warning("X-GitHub-Event header missing from repo %s", repo)
-        app.logger.debug("Body: %s", body)
-        return invalid_request("X-GitHub-Event header missing")
-    elif github_event == "ping":
-        app.logger.info("Responded to a ping event from repo %s", repo)
-        return jsonify({
-            "success": "Hook works!"
-        })
-    elif github_event != "push":
-        app.logger.warning("Invalid X-GitHub-Event %s from repo %s", github_event, repo)
-        return invalid_request("Invalid X-GitHub-Event header, only accepting ping and push.")
-
-    if body is None:
-        app.logger.warning("Could not decode body to JSON.")
-        app.logger.debug(request.get_data())
-        return invalid_request()
-
-    try:
-        repo = body["repository"]["clone_url"]
-        branch = get_branch_from_ref(body["ref"])
-    except KeyError:
-        app.logger.warning("Keys missing from request")
-        app.logger.debug(body)
-        return invalid_request()
-
-    if branch is None:
-        app.logger.warning("Could not get branch from ref %s from repo %s", repo, (body or {}).get("ref"))
-        return invalid_request("Nothing was pushed to a branch.")
+    branch = body.get("branch")
+    if not branch:
+        app.logger.warning(f"Invalid request: {repo}")
+        return invalid_request("Missing `branch` key")
 
     if not is_branch_in_naucse(repo, branch):
-        app.logger.warning("Branch %s from repo %s is not used in naucse.python.cz", branch, repo)
-        return invalid_request("The hook was called for a repo/branch combo that's not present in naucse.python.cz")
+        app.logger.warning(f"Branch {branch} from repo {repo} is not used in naucse.python.cz")
+        return invalid_request(
+            "The trigger was called for a repo/branch combo that's not present in naucse.python.cz")
 
     commit = get_last_commit_in_branch(repo, branch)
 
     if not commit:
-        app.logger.warning("Could not load the last commit in branch %s in repo %s", branch, repo)
+        app.logger.warning(f"Could not load the last commit in branch {branch} in repo {repo}")
         return invalid_request("Could not load the last commit from GitHub.")
     elif last_commit[repo][branch] == commit:
-        app.logger.warning("A build was already triggered for branch %s from repo %s", branch, repo)
+        app.logger.warning(f"A build was already triggered for branch {branch} from repo {branch}")
         return invalid_request("A build was already triggered for this commit in this branch.")
 
     last_commit[repo][branch] = commit
     trigger_build(repo, branch)
 
-    app.logger.info("Triggered build of naucse.python.cz, branch %s, repo %s", branch, repo)
+    app.logger.info(f"Triggered build of naucse.python.cz, branch {branch}, repo {repo}")
 
     return jsonify({
         "success": "naucse.python.cz build was triggered."
