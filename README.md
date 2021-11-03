@@ -32,6 +32,7 @@ The installation is at ``/``. The OAuth callback is at ``/github-callback``.
     - **TRAVIS_REPO_SLUG** - slug of the repo on Travis
     - **TRAVIS_TOKEN** - see https://docs.travis-ci.com/user/triggering-builds/
     - **SENTRY_DSN** - a DSN for Sentry, to use Raven to catch errors (optional)
+    - **GITHUB_TOKEN** - GitHub token used to run naucse GitHub workflows
   + List of available settings for hook installation:
     - **SESSION_COOKIE_DOMAIN** - needs to be either ``None`` or the domain the app is deployed on
     - **SECRET_KEY** - a random string used for singing

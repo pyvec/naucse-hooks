@@ -144,6 +144,32 @@ def trigger_build(repo, branch):
     response.raise_for_status()
 
 
+def trigger_build_github(repo, branch):
+    """ Sends a request to GitHub, rebuilding the content
+    """
+    if not app.config["NAUCSE_GIT_URL"] or not app.config["NAUCSE_BRANCH"]:
+        return
+
+    # Strip `github.com/` prefix
+    parsed = giturlparse.parse(app.config["NAUCSE_GIT_URL"])
+    if not parsed.valid or not parsed.github:
+        return
+
+    repo_path = f"{parsed.owner}/{parsed.repo}"
+    response = requests.post(
+        f"https://api.github.com/repos/{repo_path}/dispatches",
+        json={
+            "event_type": "Redeploy",
+            "client_payload": {"message": f"Triggered by {repo}/{branch}"}
+        },
+        headers={
+            "Authorization": f"token {app.config['GITHUB_TOKEN']}",
+            "Accept": "application/vnd.github.v3+json"
+        }
+    )
+    response.raise_for_status()
+
+
 def get_branch_from_ref(ref: str) -> Optional[str]:
     if ref.startswith("refs/heads/"):
         return ref.replace("refs/heads/", "")
@@ -315,6 +341,7 @@ def push_hook():
 
     last_commit[repo][branch] = commit
     trigger_build(repo, branch)
+    trigger_build_github(repo, branch)
 
     app.logger.info("Triggered build of naucse.python.cz, branch %s, repo %s", branch, repo)
 
