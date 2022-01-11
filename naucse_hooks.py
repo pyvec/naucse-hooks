@@ -62,13 +62,9 @@ def get_last_commit_in_branch(repo, branch):
         return None
 
 
-def _iterate(folder: Path):
-    """ Recursive function which iterates over a folder contents,
-        going deeper to folders and yielding link parsed link files
-    """
-    for child in folder.glob("**/link.yml"):
-        fork = yaml.safe_load(child.read_text())
-        yield fork
+def iterate_repos() -> Iterator[Dict[str, str]]:
+    """Pulls naucse and yields (url, branch) pairs all external course repositories"""
+    folder = get_latest_naucse()
 
     main_course_path = folder / "courses.yml"
     if not main_course_path.exists():
@@ -76,18 +72,7 @@ def _iterate(folder: Path):
 
     courses = yaml.safe_load(main_course_path.read_text())
     for course in courses.values():
-        yield {
-            "branch": course.get("branch", "master"),
-            "repo": course.get("url")
-        }
-
-
-def iterate_forks() -> Iterator[Dict[str, str]]:
-    """ Pulls naucse and iterates over all files in the repository, yielding all links
-    """
-    naucse_path = get_latest_naucse()
-
-    yield from _iterate(naucse_path)
+        yield course.get("url"), course.get("branch", "master")
 
 
 def normalize_repo(repo) -> str:
@@ -109,9 +94,8 @@ def same_repo(repo1, repo2) -> bool:
 def is_branch_in_naucse(repo: str, branch: str) -> bool:
     """ Checks if a pushed branch is used in naucse somewhere
     """
-    for fork in iterate_forks():
-        if fork.get("branch", "master").strip() == branch.strip() and same_repo(fork["repo"],
-                                                                                repo):
+    for it_repo, it_branch in set(iterate_repos()):
+        if it_branch.strip() == branch.strip() and same_repo(it_repo, repo):
             return True
     return False
 
