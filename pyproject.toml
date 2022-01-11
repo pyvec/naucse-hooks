@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "naucse_hooks"
+version = "1.0.0"
+description = "Webhooks for naucse.python.cz"
+authors = ["Mikuláš Poul <git@mikulaspoul.cz>"]
+license = "MIT"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+Flask = "^2.0.2"
+arca = ">=0.3.1"
+PyYAML = "^6.0"
+requests = "^2.27.1"
+giturlparse = "^0.10.0"
+raven = {extras = ["flask"], version = "^6.10.0"}
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+pytest-cov = "^3.0.0"
+pytest-flake8 = "^1.0.7"
+pytest-mock = "^3.6.1"
+requests-mock = "^1.9.3"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "--flake8 --cov=naucse_hooks --cov-report term-missing naucse_hooks.py test_naucse_hooks.py"
+flake8-max-line-length = 120
+filterwarnings = [
+    # flake8
+    "ignore:SelectableGroups dict interface is deprecated. Use select.:DeprecationWarning",
+    # git
+    "ignore:setDaemon\\(\\) is deprecated, set the daemon attribute instead:DeprecationWarning",
+]
