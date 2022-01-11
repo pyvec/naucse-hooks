@@ -69,32 +69,19 @@ def testclient(testapp):
 def fake_repo():
     repo = Path(tempfile.mkdtemp())
 
-    (repo / "nested" / "folders").mkdir(parents=True, exist_ok=True)
-    (repo / "info.yml").write_text(yaml.dump({
-        "repo": "https://github.com/baxterthehacker/public-repo.git",
-        "branch": "wrong_filename"
-    }))
-    (repo / "link.yml").write_text(yaml.dump({
-        "repo": "https://github.com/baxterthehacker/public-repo.git",
-        "branch": "root_folder"
-    }))
-
-    (repo / "nested" / "link.yml").write_text(yaml.dump({
-        "repo": "https://github.com/baxterthehacker/public-repo.git",
-        "branch": "nested_one"
-    }))
-
-    (repo / "nested" / "info.yml").write_text(yaml.dump({
-        "repo": "https://github.com/baxterthehacker/public-repo.git",
-        "branch": "wrong_filename_two"
-    }))
-
-    (repo / "nested" / "folders" / "link.yml").write_text(yaml.dump({
-        "repo": "https://github.com/baxterthehacker/public-repo.git",
-        "branch": "nested_two"
-    }))
-
     (repo / "courses.yml").write_text(yaml.dump({
+        "a": {
+            "url": "https://github.com/baxterthehacker/public-repo.git",
+            "branch": "root_folder"
+        },
+        "b": {
+            "url": "https://github.com/baxterthehacker/public-repo.git",
+            "branch": "nested_one"
+        },
+        "c": {
+            "url": "https://github.com/baxterthehacker/public-repo.git",
+            "branch": "nested_two"
+        },
         "foo": {
             "url": "https://github.com/baxterthehacker/public-repo.git",
             "branch": "main_course"
