@@ -8,7 +8,7 @@ import giturlparse
 import requests
 import yaml
 from arca import Arca, CurrentEnvironmentBackend
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, Response
 from raven.contrib.flask import Sentry
 
 app = Flask(__name__)
@@ -183,6 +183,14 @@ def refresh_trigger():
     return jsonify({
         "success": "naucse.python.cz build was triggered."
     })
+
+
+@app.route("/")
+def index():
+    return Response(
+        "Tato aplikace slouží na automatické nasazování projektu Nauč se Python.",
+        mimetype="text/plain",
+    )
 
 
 if __name__ == '__main__':
